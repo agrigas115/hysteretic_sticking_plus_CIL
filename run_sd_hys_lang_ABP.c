@@ -473,7 +473,6 @@ int main(int argc, char *argv[]) {
 	memcpy(prev_coords, coords, sizeof(prev_coords));
 	prev_box_size = box_size;
 
-	// Begin Velocity Verlet //
 	memset(displacement_array, 0, sizeof(displacement_array));
 	memset(total_force, 0, sizeof(total_force));
 	memset(vstress, 0, sizeof(vstress));

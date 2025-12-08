@@ -1,5 +1,5 @@
-/* Run MD based on setup_MD.py */
-/* Alex Grigas               */
+/* Run NVT */
+/* Alex Grigas */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -10,10 +10,8 @@
 
 #define pi 3.14159265358979323846
 
-// Compute non-bonded interaction
-// ''Spring - LJ''
-// Repulsive linear spring
-// Short range attracting spring, set by a,b,c
+// Cell-cell interaction
+// Hysteretic sticky spring
 double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_array2[], 
 					double total_force[][2], int num_neighs, int vlist[], double Lx, double Ly, 
 					double vstress[][2], double sigma_ij_array[], int num_atoms, int adhesion_array[], int* z){
@@ -22,11 +20,10 @@ double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_arr
 	int i, index;
 	double x1, x2, y1, y2, delta_x, delta_y;
 	double sigma_ij;
-	double avg_delta = 0;
-	int delta_count = 0;
+	*z = 0;
 	double delta_x_norm, delta_y_norm, inv_dist;
 	double Fx, Fy;
-	*z = 0;
+	// Check Verlet neighbors
 	for (i = 0; i < num_neighs; i++){
 		index = vlist[i];
 		x1 = coords[nonbonded_array1[index]][0];
@@ -42,21 +39,25 @@ double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_arr
 
 		distance = sqrt((delta_x*delta_x) + (delta_y*delta_y));
 
+		// Sum of radii
 		sigma_ij = sigma_ij_array[index];
 		
+		// If bonded
 		if (adhesion_array[index] == 1){
+			// Linear spring magnitude
 			mag = (sigma_ij - distance);
 			*z += 1;
-			if (distance > sigma_ij){
-				avg_delta += -mag;
-				delta_count += 1;
+			if (distance < sigma_ij){
+				mag *= 100;
 			}
-
 		}
+		// If not bonded, check for overlap
 		else if (adhesion_array[index] == 0){
-		
+			// If overlapping
 			if (distance <= sigma_ij){
 				mag = (sigma_ij - distance);
+				mag *= 100;
+				// Form double sided spring
 				adhesion_array[index] = 1;
 			}
 			else{
@@ -64,13 +65,16 @@ double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_arr
 			}
 		}
 
+		// Get unit vector
 		inv_dist = 1.0 / distance;
 		delta_x_norm = delta_x * inv_dist;
 		delta_y_norm = delta_y * inv_dist;
 
+		// Scale by magnitude
 		Fx = delta_x_norm * mag;
 		Fy = delta_y_norm * mag;
 		
+		// Add to the total force
 		total_force[nonbonded_array1[index]][0] += Fx;
 		total_force[nonbonded_array1[index]][1] += Fy;
 		total_force[nonbonded_array2[index]][0] += -Fx;
@@ -84,9 +88,10 @@ double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_arr
 		vstress[1][0] += Fy*delta_x;
 
 	}
-	return avg_delta / delta_count;
+	return V;
 }
 
+// CIL-C activity 
 void compute_adhesion_repulsion(double coords[][2], int nonbonded_array1[], int nonbonded_array2[], int num_nonbonded, 
 								double total_force[][2], int adhesion_array[], double v0, double Lx, double Ly, 
 								double ar_force[][2], int num_atoms, double vstress_a[][2], int adhesion_count_array[]){
@@ -102,7 +107,10 @@ void compute_adhesion_repulsion(double coords[][2], int nonbonded_array1[], int 
 
 	for (i=0;i<num_nonbonded;i++){
 
+		// If bonded
 		if (adhesion_array[i] == 1){
+
+			// Get bond unit vector
 
 			x1 = coords[nonbonded_array1[i]][0];
 			y1 = coords[nonbonded_array1[i]][1];
@@ -156,6 +164,7 @@ void compute_adhesion_repulsion(double coords[][2], int nonbonded_array1[], int 
 		ex = ar_force[i][0];
 		ey = ar_force[i][1];
 
+		// Scale direction by swim speed
 		Fx = v0*ex;
 		Fy = v0*ey;
 
@@ -173,7 +182,7 @@ void compute_adhesion_repulsion(double coords[][2], int nonbonded_array1[], int 
 	}
 }
 
-void update_bub(double coords[][2], int adhesion_array[], double p_off, int num_nonbonded){
+void update_bonds(double coords[][2], int adhesion_array[], double p_off, int num_nonbonded){
 	int i;
 	double rand_unif;
 	for (i = 0; i < num_nonbonded; i++){
@@ -188,6 +197,7 @@ void update_bub(double coords[][2], int adhesion_array[], double p_off, int num_
 	return;
 }
 
+// Get Verlet list
 int generate_vlist(double coords[][2], int nonbonded_array1[], int nonbonded_array2[],
 					int num_nonbonded, int vlist[], double r_l, double Lx, double Ly, 
 					double sigma_ij_array[], int adhesion_array[], int num_atoms){
@@ -196,31 +206,40 @@ int generate_vlist(double coords[][2], int nonbonded_array1[], int nonbonded_arr
 	double x1, x2, y1, y2, delta_x, delta_y;
 	double distance, rc, rl;
 	double cutoff;
+	// Check all pairs
 	for (i=0; i<num_nonbonded; i++){
-		x1 = coords[nonbonded_array1[i]][0];
-		y1 = coords[nonbonded_array1[i]][1];
-		x2 = coords[nonbonded_array2[i]][0];
-		y2 = coords[nonbonded_array2[i]][1];
 
-		cutoff = sigma_ij_array[i] * r_l;
-
-		delta_x = x1-x2;
-		delta_x -= Lx * nearbyint(delta_x / Lx);
-		
-		delta_y = y1-y2;
-		delta_y -= Ly * nearbyint(delta_y / Ly);
-
-		distance = sqrt((delta_x*delta_x) + (delta_y*delta_y));
-
-		if (distance < cutoff || adhesion_array[i] == 1){
+		// If they're bound add to list
+		if (adhesion_array[i] == 1){
 			vlist[num_neighs] = i;
 			num_neighs += 1;
+		}
+		else{
+			x1 = coords[nonbonded_array1[i]][0];
+			y1 = coords[nonbonded_array1[i]][1];
+			x2 = coords[nonbonded_array2[i]][0];
+			y2 = coords[nonbonded_array2[i]][1];
+
+			cutoff = sigma_ij_array[i] * r_l;
+
+			delta_x = x1-x2;
+			delta_x -= Lx * nearbyint(delta_x / Lx);
+			
+			delta_y = y1-y2;
+			delta_y -= Ly * nearbyint(delta_y / Ly);
+
+			distance = sqrt((delta_x*delta_x) + (delta_y*delta_y));
+			// Check for rl overlap
+			if (distance < cutoff){
+				vlist[num_neighs] = i;
+				num_neighs += 1;
+			}
 		}
 	}
 	return num_neighs;
 }
 
-
+// Box-Muller transform for random gaussian numbers
 void generate_gaussian(int half_sample_size, double gaussian_array[][2]){
 	int i, dim;
 	double rand_unif1, rand_unif2;
@@ -244,14 +263,20 @@ void generate_gaussian(int half_sample_size, double gaussian_array[][2]){
 }
 
 int main(int argc, char *argv[]) {
-	// argv[1]: int for sequence
-	// argv[2]: run number
+	// argv[1]: run number
+	// argv[2]: poff
+	// argv[3]: v0
+	// argv[4]: phi
+	// argv[5]: T
+	// argv[6]: gamma
+	// argv[7]: seq
+
 	srand48(atoi(argv[1])+atoi(argv[7])); // seed RNG
 	char buf[0x100]; // buffering strings
 
 	//printf("Welcome!\n");
 	double total_potential_energy = 0, total_kinetic_energy = 0;
-	double lj_energy, wall_energy; // Energy terms
+	double lj_energy; // Energy terms
 	double v;
 	double avg_x, avg_y; // centering
 	clock_t time_1, time_2; // timing
@@ -487,28 +512,12 @@ int main(int argc, char *argv[]) {
 	memcpy(prev_coords, coords, sizeof(prev_coords));
 	prev_box_size = box_size;
 
-	// Begin Velocity Verlet //
 	memset(displacement_array, 0, sizeof(displacement_array));
 	memset(total_force, 0, sizeof(total_force));
 	memset(vstress, 0, sizeof(vstress));
 
-	/*
-	total_kinetic_energy = 0;
-	for (j = 0; j < num_atoms; j++){
-		v = sqrt( (velocs[j][0]*velocs[j][0]) + (velocs[j][1]*velocs[j][1]) );
-		total_kinetic_energy += 0.5 * v * v;
-	}
-	temp = total_kinetic_energy / num_atoms;
 
-	scaling = sqrt(target_temp/temp);
-	for (j = 0; j < num_atoms; j++){
-		for (k = 0; k < 2; k++){
-			velocs[j][k] *= scaling;
-		}
-	}
-	*/
-
-	// NVE //
+	// Compressing and decompressing particles with FIRE energy minimization //
 	double disp = 0, disp_max1 = 0, disp_max2 = 0;
 	double disp_x, disp_y;
 	double disp_list[num_atoms];
@@ -552,7 +561,6 @@ int main(int argc, char *argv[]) {
 	double Ptol = 1e-7;
 	double fcheck = 10*Ftol;
 
-	/* Beginning Jamming */
 	bool jammed = 0;
 	bool overcompressed, undercompressed;
 	double pcheck = 0;
@@ -793,6 +801,8 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	// Langevin dynamics under activity model //
+
 	double gamma = atof(argv[6]);
 	double exp_gamma_dt =  exp(-gamma * dt_lang);
 	double fluc_coeff = sqrt(1. - exp(-2. * gamma * dt_lang)) * sqrt(target_temp);
@@ -878,8 +888,7 @@ int main(int argc, char *argv[]) {
 		} 
 		
 		if (NVT_count % split == 0){
-			update_bub(coords, adhesion_array, p_off, num_nonbonded);
-
+			update_bonds(coords, adhesion_array, p_off, num_nonbonded);
 		}
 		if (NVT_count % 100000 == 0){
 			//printf("i = %d\n",NVT_count);
