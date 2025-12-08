@@ -47,16 +47,12 @@ double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_arr
 			// Linear spring magnitude
 			mag = (sigma_ij - distance);
 			*z += 1;
-			if (distance < sigma_ij){
-				mag *= 100;
-			}
 		}
 		// If not bonded, check for overlap
 		else if (adhesion_array[index] == 0){
 			// If overlapping
 			if (distance <= sigma_ij){
 				mag = (sigma_ij - distance);
-				mag *= 100;
 				// Form double sided spring
 				adhesion_array[index] = 1;
 			}
