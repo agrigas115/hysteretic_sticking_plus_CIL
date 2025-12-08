@@ -20,18 +20,18 @@ using namespace std;
 
 // Cell-cell interaction
 // Hysteretic sticky spring
-double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_array2[], 
+void compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_array2[], 
 					double total_force[][2], int num_neighs, int vlist[], double Lx, double Ly, 
-					double vstress[][2], double sigma_ij_array[], int num_atoms, int adhesion_array[], int* z){
+					double vstress[][2], double sigma_ij_array[], int num_atoms, int adhesion_array[], 
+					int* z, double r0_array[], double ratchet_rate, double tension_array[], double contraction_array[]){
 	double distance, mag;
-	double V = 0;
 	int i, index;
-	double x1, x2, y1, y2, delta_x, delta_y;
+	double x1, x2, y1, y2, delta_x, delta_y, r0;
 	double sigma_ij;
-	*z = 0;
 	double delta_x_norm, delta_y_norm, inv_dist;
 	double Fx, Fy;
-	// Check Verlet neighbors
+	*z = 0;
+	mag = 0;
 	for (i = 0; i < num_neighs; i++){
 		index = vlist[i];
 		x1 = coords[nonbonded_array1[index]][0];
@@ -47,38 +47,45 @@ double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_arr
 
 		distance = sqrt((delta_x*delta_x) + (delta_y*delta_y));
 
-		// Sum of radii
 		sigma_ij = sigma_ij_array[index];
 		
-		// If bonded
 		if (adhesion_array[index] == 1){
-			// Linear spring magnitude
-			mag = (sigma_ij - distance);
+			r0 = r0_array[index];
+			mag = (r0 - distance);
+			//if (distance > sigma_ij){
+			//	mag *= 0.01;
+			//}
+			tension_array[index] = mag;
 			*z += 1;
+			if (r0_array[index] > sigma_ij_array[index]){
+				r0_array[index] -= ratchet_rate*sigma_ij_array[index];
+			}
+			else if (r0_array[index] < sigma_ij_array[index]){
+				r0_array[index] = sigma_ij_array[index];
+			}
+
 		}
-		// If not bonded, check for overlap
 		else if (adhesion_array[index] == 0){
-			// If overlapping
+		
 			if (distance <= sigma_ij){
-				mag = (sigma_ij - distance);
-				// Form double sided spring
+				mag = sigma_ij - distance;
+				*z += 1;
+				// Form adhesion on contact
 				adhesion_array[index] = 1;
+				r0_array[index] = sigma_ij;
 			}
 			else{
 				mag = 0.0;
 			}
 		}
 
-		// Get unit vector
 		inv_dist = 1.0 / distance;
 		delta_x_norm = delta_x * inv_dist;
 		delta_y_norm = delta_y * inv_dist;
 
-		// Scale by magnitude
 		Fx = delta_x_norm * mag;
 		Fy = delta_y_norm * mag;
 		
-		// Add to the total force
 		total_force[nonbonded_array1[index]][0] += Fx;
 		total_force[nonbonded_array1[index]][1] += Fy;
 		total_force[nonbonded_array2[index]][0] += -Fx;
@@ -92,8 +99,9 @@ double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_arr
 		vstress[1][0] += Fy*delta_x;
 
 	}
-	return V;
+	return;
 }
+
 
 // CIL-P activity
 void update_bonds(double coords[][2], int adhesion_array[], double p_on, double p_off, int num_neighs, 
