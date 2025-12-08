@@ -152,6 +152,7 @@ void update_bonds(double coords[][2], int adhesion_array[], double p_off, int nu
 	return;
 }
 
+// Get Verlet list
 int generate_vlist(double coords[][2], int nonbonded_array1[], int nonbonded_array2[],
 					int num_nonbonded, int vlist[], double r_l, double Lx, double Ly, 
 					double sigma_ij_array[], int adhesion_array[], int num_atoms){
@@ -160,31 +161,40 @@ int generate_vlist(double coords[][2], int nonbonded_array1[], int nonbonded_arr
 	double x1, x2, y1, y2, delta_x, delta_y;
 	double distance, rc, rl;
 	double cutoff;
+	// Check all pairs
 	for (i=0; i<num_nonbonded; i++){
-		x1 = coords[nonbonded_array1[i]][0];
-		y1 = coords[nonbonded_array1[i]][1];
-		x2 = coords[nonbonded_array2[i]][0];
-		y2 = coords[nonbonded_array2[i]][1];
 
-		cutoff = sigma_ij_array[i] * r_l;
-
-		delta_x = x1-x2;
-		delta_x -= Lx * nearbyint(delta_x / Lx);
-		
-		delta_y = y1-y2;
-		delta_y -= Ly * nearbyint(delta_y / Ly);
-
-		distance = sqrt((delta_x*delta_x) + (delta_y*delta_y));
-
-		if (distance < cutoff || adhesion_array[i] == 1){
+		// If they're bound add to list
+		if (adhesion_array[i] == 1){
 			vlist[num_neighs] = i;
 			num_neighs += 1;
+		}
+		else{
+			x1 = coords[nonbonded_array1[i]][0];
+			y1 = coords[nonbonded_array1[i]][1];
+			x2 = coords[nonbonded_array2[i]][0];
+			y2 = coords[nonbonded_array2[i]][1];
+
+			cutoff = sigma_ij_array[i] * r_l;
+
+			delta_x = x1-x2;
+			delta_x -= Lx * nearbyint(delta_x / Lx);
+			
+			delta_y = y1-y2;
+			delta_y -= Ly * nearbyint(delta_y / Ly);
+
+			distance = sqrt((delta_x*delta_x) + (delta_y*delta_y));
+			// Check for rl overlap
+			if (distance < cutoff){
+				vlist[num_neighs] = i;
+				num_neighs += 1;
+			}
 		}
 	}
 	return num_neighs;
 }
 
-
+// Box-Muller transform for random gaussian numbers
 void generate_gaussian(int half_sample_size, double gaussian_array[][2]){
 	int i, dim;
 	double rand_unif1, rand_unif2;
@@ -221,10 +231,9 @@ int main(int argc, char *argv[]) {
 	int seed = atoi(argv[1])+atoi(argv[6]);
 	srand48(seed);
 
-
 	//printf("Welcome!\n");
 	double total_potential_energy = 0, total_kinetic_energy = 0;
-	double lj_energy, wall_energy; // Energy terms
+	double lj_energy; // Energy terms
 	double v;
 	double avg_x, avg_y; // centering
 	clock_t time_1, time_2; // timing
@@ -237,16 +246,16 @@ int main(int argc, char *argv[]) {
 	double dt_sqr = dt*dt;
 	double dt_lang = dt;
 
-	double target_temp = atof(argv[5]);
+	double target_temp = atof(argv[5]); // Target temperature in Langevin
 
-	double Dr = atof(argv[8]);
+	double Dr = atof(argv[8]); // Rotational diffusion of ABP vector
 
 	int z;
 	double avg_delta;
 
-	double vstress[2][2] = {0};
-	double vstress_t[2][2] = {0};
-	double vstress_a[2][2] = {0};
+	double vstress[2][2] = {0};  // Virial stress tensor
+	double vstress_t[2][2] = {0}; // Thermal component of virial stress
+	double vstress_a[2][2] = {0}; // Swim stress tensor
 
 	double initial_temp, temp;
 
@@ -268,19 +277,19 @@ int main(int argc, char *argv[]) {
 	}
 	fclose(fp);
 
-	double polar_list[num_atoms];
+	double polar_list[num_atoms]; // Activity angles
 
 	for (i=0; i<num_atoms; i++){
 		polar_list[i] = 2*pi*drand48();
 	}
 
-	double p_off = atof(argv[2]);
-	double v0 = atof(argv[3]);
+	double p_off = atof(argv[2]); // Unbinding probability
+	double v0 = atof(argv[3]); // Swim speed
 
-	double target_phi = atof(argv[4]);
+	double target_phi = atof(argv[4]); // Target packing fraction
 
 	// Find initial Box size //
-	double initial_phi = 0.1;
+	double initial_phi = 0.1; // Initial packing fraction
 	double vol = 0;
 	for (i=0; i<num_atoms; i++){
 		vol += pi*sigma_i_array[i]*sigma_i_array[i];
@@ -396,11 +405,10 @@ int main(int argc, char *argv[]) {
 		Ly = box_size;
 		
 
-		/* Getting Initial Coords - RW */
+		// Getting Initial Coords - RSA //
 		memset(coords, 0, sizeof(coords));
 		memset(gaussian_array, 0, sizeof(gaussian_array));
 		double delta_x, delta_y;
-		//generate_gaussian(half_sample_size, gaussian_array);
 		double random_vec_x = 0, random_vec_y = 0;
 		int overlap_check = 0, overlap_count = 0;
 		double distance, x1, x2, y1, y2;
@@ -409,7 +417,6 @@ int main(int argc, char *argv[]) {
 			// Normalize and scale
 			while (overlap_check == 0){
 				overlap_count = 0;
-				//generate_gaussian(half_sample_size, gaussian_array);
 				random_vec_x = drand48();
 				random_vec_y = drand48();
 				//if (i == 0){
@@ -471,23 +478,7 @@ int main(int argc, char *argv[]) {
 	memset(total_force, 0, sizeof(total_force));
 	memset(vstress, 0, sizeof(vstress));
 
-	/*
-	total_kinetic_energy = 0;
-	for (j = 0; j < num_atoms; j++){
-		v = sqrt( (velocs[j][0]*velocs[j][0]) + (velocs[j][1]*velocs[j][1]) );
-		total_kinetic_energy += 0.5 * v * v;
-	}
-	temp = total_kinetic_energy / num_atoms;
-
-	scaling = sqrt(target_temp/temp);
-	for (j = 0; j < num_atoms; j++){
-		for (k = 0; k < 2; k++){
-			velocs[j][k] *= scaling;
-		}
-	}
-	*/
-
-	// NVE //
+	// Compressing and decompressing particles with FIRE energy minimization //
 	double disp = 0, disp_max1 = 0, disp_max2 = 0;
 	double disp_x, disp_y;
 	double disp_list[num_atoms];
@@ -531,7 +522,6 @@ int main(int argc, char *argv[]) {
 	double Ptol = 1e-7;
 	double fcheck = 10*Ftol;
 
-	/* Beginning Jamming */
 	bool jammed = 0;
 	bool overcompressed, undercompressed;
 	double pcheck = 0;
@@ -753,7 +743,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	double gamma = atof(argv[6]);
+	// Langevin dynamics under activity model //
+
+	double gamma = atof(argv[6]); // Damping coefficient
 	double exp_gamma_dt =  exp(-gamma * dt_lang);
 	double fluc_coeff = sqrt(1. - exp(-2. * gamma * dt_lang)) * sqrt(target_temp);
 	i = -1;
@@ -841,13 +833,11 @@ int main(int argc, char *argv[]) {
 			for (k = 0; k < 2; k++){
 				velocs[j][k] = v_prime[j][k] + 0.5 * dt_lang * total_force[j][k];
 			}
-		} 
-
+		}
 		
 
 		if (NVT_count % split == 0){
 			update_bonds(coords, adhesion_array, p_off, num_nonbonded);
-
 		}
 		if (NVT_count % 100000 == 0){
 			//printf("i = %d\n",NVT_count);
