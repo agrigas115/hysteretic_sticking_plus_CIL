@@ -44,6 +44,12 @@ argv[6]: gamma
 
 argv[7]: seq
 
+Units in the code are all in raw simulation units. The ABP model never generates the tensioned fluid state.
+The following is an example run that generates the tensioend fluid state in the CIL-C model:
+```
+./MD 0 0.001 1.0 0.4 0 1000 0
+```
+
 ## CIL-P
 The CIL-P method uses a Voronoi diagram to find potential binding partners, using the Voro++ software: https://math.lbl.gov/voro++/
 Compile the code using the Voro++ library.
