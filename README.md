@@ -49,6 +49,7 @@ The following is an example run that generates the tensioend fluid state in the 
 ```
 ./MD 0 0.001 1.0 0.4 0 1000 0
 ```
+Output is saved in two files in directories traj_data and bonded_data. The trajectory files contain the x and y positions of each particle, as well as the x and y components of each particles activity vector, respectively arranged in four columns. Each frame is separated by a line that lists the box size four times. The bonded data contains the particle indices are bonded pairs, separated by tabs. Each new line corresponds to the next frame. Example frames are provided. Every 100,000 steps, checkpoint files are written to chk to allow automatic restarting. Deleted previous checkpoint files if starting a new run. The seed is set by run number and sequence.
 
 ## CIL-P
 The CIL-P method uses a Voronoi diagram to find potential binding partners, using the Voro++ software: https://math.lbl.gov/voro++/
