@@ -12,19 +12,19 @@ The command line arguments for the ABP simulation are:
 
 argv[1]: run number
 
-argv[2]: poff
+argv[2]: poff - probability of unbinding
 
-argv[3]: v0
+argv[3]: v0 - swim velocity
 
-argv[4]: phi
+argv[4]: phi - packing fraction
 
-argv[5]: T
+argv[5]: T - temperature in Langevin thermostat
 
-argv[6]: Gamma
+argv[6]: gamma - friction in Langevin thermostat
 
-argv[7]: seq
+argv[7]: seq - int for radii set in seq/seq_%s.txt
 
-argv[8]: Dr
+argv[8]: Dr - activity vector rotational diffusion coefficient
 
 
 The command line arguments for the CIL_C simulation are:
@@ -32,17 +32,17 @@ The command line arguments for the CIL_C simulation are:
 
 argv[1]: run number
 
-argv[2]: poff
+argv[2]: poff - probability of unbinding
 
-argv[3]: v0
+argv[3]: v0 - swim velocity
 
-argv[4]: phi
+argv[4]: phi - packing fraction
 
-argv[5]: T
+argv[5]: T - temperature in Langevin thermostat
 
-argv[6]: gamma
+argv[6]: gamma - friction in Langevin thermostat
 
-argv[7]: seq
+argv[7]: seq - int for radii set in seq/seq_%s.txt
 
 Units in the code are all in raw simulation units. The ABP model never generates the tensioned fluid state.
 The following is an example run that generates the tensioend fluid state in the CIL-C model:
@@ -57,3 +57,22 @@ Compile the code using the Voro++ library.
 ```
 g++ run_sd_hys_lang_voro_at2_ratchet_prod_poly.cpp -I path/to/voro++/voro++-0.4.6/src/ -L path/to/voro++/voro++-0.4.6/src/ -lvoro++ -O3 -o MD 
 ```
+The command line arguments for the CIL_P simulation are:
+
+argv[1]: seq - int for radii set in seq/seq_%s.txt
+
+argv[2]: run number
+
+argv[3]: pon - probability of making a new adhesion
+
+argv[4]: poff - probability of cutting an exisiting adhesion
+
+argv[5]: phi - packing fraction
+
+argv[6]: T - temperature in Langevin thermostat
+
+argv[7]: gamma - friction in Langevin thermostat
+
+argv[8]: theta - cutoff in adhesion angle to determine if a new adhesion is possible
+
+argv[9]: rr - ratchet rate of pulling in adhesion rest length
