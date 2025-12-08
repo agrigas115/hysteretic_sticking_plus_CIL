@@ -1,5 +1,5 @@
-/* Run MD based on setup_MD.py */
-/* Alex Grigas               */
+/* Run NVT */
+/* Alex Grigas */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -18,22 +18,20 @@ using namespace std;
 
 #define pi 3.14159265358979323846
 
-// Compute non-bonded interaction
-// ''Spring - LJ''
-// Repulsive linear spring
-// Short range attracting spring, set by a,b,c
-void compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_array2[], 
+// Cell-cell interaction
+// Hysteretic sticky spring
+double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_array2[], 
 					double total_force[][2], int num_neighs, int vlist[], double Lx, double Ly, 
-					double vstress[][2], double sigma_ij_array[], int num_atoms, int adhesion_array[], 
-					int* z, double r0_array[], double ratchet_rate, double tension_array[], double contraction_array[]){
+					double vstress[][2], double sigma_ij_array[], int num_atoms, int adhesion_array[], int* z){
 	double distance, mag;
+	double V = 0;
 	int i, index;
-	double x1, x2, y1, y2, delta_x, delta_y, r0;
+	double x1, x2, y1, y2, delta_x, delta_y;
 	double sigma_ij;
+	*z = 0;
 	double delta_x_norm, delta_y_norm, inv_dist;
 	double Fx, Fy;
-	*z = 0;
-	mag = 0;
+	// Check Verlet neighbors
 	for (i = 0; i < num_neighs; i++){
 		index = vlist[i];
 		x1 = coords[nonbonded_array1[index]][0];
@@ -49,45 +47,42 @@ void compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_array
 
 		distance = sqrt((delta_x*delta_x) + (delta_y*delta_y));
 
+		// Sum of radii
 		sigma_ij = sigma_ij_array[index];
 		
+		// If bonded
 		if (adhesion_array[index] == 1){
-			r0 = r0_array[index];
-			mag = (r0 - distance);
-			//if (distance > sigma_ij){
-			//	mag *= 0.01;
-			//}
-			tension_array[index] = mag;
+			// Linear spring magnitude
+			mag = (sigma_ij - distance);
 			*z += 1;
-			if (r0_array[index] > sigma_ij_array[index]){
-				r0_array[index] -= ratchet_rate*sigma_ij_array[index];
+			if (distance < sigma_ij){
+				mag *= 100;
 			}
-			else if (r0_array[index] < sigma_ij_array[index]){
-				r0_array[index] = sigma_ij_array[index];
-			}
-
 		}
+		// If not bonded, check for overlap
 		else if (adhesion_array[index] == 0){
-		
+			// If overlapping
 			if (distance <= sigma_ij){
-				mag = sigma_ij - distance;
-				*z += 1;
-				// Form adhesion on contact
+				mag = (sigma_ij - distance);
+				mag *= 100;
+				// Form double sided spring
 				adhesion_array[index] = 1;
-				r0_array[index] = sigma_ij;
 			}
 			else{
 				mag = 0.0;
 			}
 		}
 
+		// Get unit vector
 		inv_dist = 1.0 / distance;
 		delta_x_norm = delta_x * inv_dist;
 		delta_y_norm = delta_y * inv_dist;
 
+		// Scale by magnitude
 		Fx = delta_x_norm * mag;
 		Fy = delta_y_norm * mag;
 		
+		// Add to the total force
 		total_force[nonbonded_array1[index]][0] += Fx;
 		total_force[nonbonded_array1[index]][1] += Fy;
 		total_force[nonbonded_array2[index]][0] += -Fx;
@@ -101,11 +96,11 @@ void compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_array
 		vstress[1][0] += Fy*delta_x;
 
 	}
-	return;
+	return V;
 }
 
-
-void update_bub(double coords[][2], int adhesion_array[], double p_on, double p_off, int num_neighs, 
+// CIL-P activity
+void update_bonds(double coords[][2], int adhesion_array[], double p_on, double p_off, int num_neighs, 
 	int vlist[], double Lx, double Ly, int nonbonded_array1[], int nonbonded_array2[], 
 	int num_atoms, int adhesion_idx_array[][25], double adhesion_theta_array[][25], int count_array[], 
 	double theta_cutoff, int new_adhesion_array[], int neighbor_array[256][256], double r0_array[], double ratchet_rate, double sigma_ij_array[], double contraction_array[]){
@@ -126,6 +121,7 @@ void update_bub(double coords[][2], int adhesion_array[], double p_on, double p_
     bool swapped;
     double temp;
 
+    // Check unbinding
     for (i = 0; i < num_neighs; i++){
 		index = vlist[i];
 		if (adhesion_array[index] == 1){
@@ -138,6 +134,7 @@ void update_bub(double coords[][2], int adhesion_array[], double p_on, double p_
 		}
 	}
 
+	// Set up adhesion pairs
 	for (idx = 0; idx < num_neighs; idx++){
 		index = vlist[idx];
 		if (adhesion_array[index] == 1){
@@ -155,6 +152,7 @@ void update_bub(double coords[][2], int adhesion_array[], double p_on, double p_
 		}
 	}
 
+	// Get pairwise sorted angle lists
 	for (i = 0; i < num_atoms; i++){
 		count = count_array[i];
 		for (idx=0; idx<count; idx++){
@@ -305,11 +303,10 @@ void update_bub(double coords[][2], int adhesion_array[], double p_on, double p_
 		count += 1;
 	}
 	
-
-	
 	
 	return;
 }
+
 
 int generate_vlist(double coords[][2], int nonbonded_array1[], int nonbonded_array2[],
 					int num_nonbonded, int vlist[], double r_l, double Lx, double Ly, 
@@ -1094,7 +1091,7 @@ int main(int argc, char *argv[]) {
 			memset(adhesion_theta_array, 0, sizeof(adhesion_theta_array));
 			memset(count_array, 0, sizeof(count_array));
 			memset(new_adhesion_array, 0, sizeof(new_adhesion_array));
-			update_bub(coords, adhesion_array, p_on, p_off, num_neighs, vlist, Lx, Ly, nonbonded_array1, nonbonded_array2, num_atoms, adhesion_idx_array, adhesion_theta_array, count_array, theta_cutoff, new_adhesion_array, neighbor_array, r0_array, ratchet_rate, sigma_ij_array, contraction_array);
+			update_bonds(coords, adhesion_array, p_on, p_off, num_neighs, vlist, Lx, Ly, nonbonded_array1, nonbonded_array2, num_atoms, adhesion_idx_array, adhesion_theta_array, count_array, theta_cutoff, new_adhesion_array, neighbor_array, r0_array, ratchet_rate, sigma_ij_array, contraction_array);
 		
 			memcpy(displacement_array, coords, sizeof(displacement_array));
 			num_neighs = generate_vlist_2(coords, nonbonded_array1, nonbonded_array2, num_nonbonded, vlist, r_l, Lx, Ly, sigma_ij_array, adhesion_array, num_atoms, neighbor_array);
