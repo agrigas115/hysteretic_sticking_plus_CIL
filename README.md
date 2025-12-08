@@ -5,6 +5,7 @@ Discrete element simulations of repulsive disks with a hysteretic sticking inter
 Both the ABP and CIL-C model can be compiled without any additional libraires.
 ```
 g++ run_sd_hys_ABP.c -O3 -o MD
+g++ run_sd_hys_CIL_C.c -O3 -o MD
 ```
 
 ## CIL-P
