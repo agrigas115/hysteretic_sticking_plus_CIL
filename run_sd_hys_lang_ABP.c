@@ -92,6 +92,82 @@ double compute_slj(double coords[][2], int nonbonded_array1[], int nonbonded_arr
 	return V;
 }
 
+// Equal spring constants speeds up jamming preparation of initial network
+double compute_slj_init(double coords[][2], int nonbonded_array1[], int nonbonded_array2[], 
+					double total_force[][2], int num_neighs, int vlist[], double Lx, double Ly, 
+					double vstress[][2], double sigma_ij_array[], int num_atoms, int adhesion_array[], int* z){
+	double distance, mag;
+	double V = 0;
+	int i, index;
+	double x1, x2, y1, y2, delta_x, delta_y;
+	double sigma_ij;
+	*z = 0;
+	double delta_x_norm, delta_y_norm, inv_dist;
+	double Fx, Fy;
+	// Check Verlet neighbors
+	for (i = 0; i < num_neighs; i++){
+		index = vlist[i];
+		x1 = coords[nonbonded_array1[index]][0];
+		y1 = coords[nonbonded_array1[index]][1];
+		x2 = coords[nonbonded_array2[index]][0];
+		y2 = coords[nonbonded_array2[index]][1];
+
+		delta_x = x1-x2;
+		delta_x -= Lx * nearbyint(delta_x / Lx);
+		
+		delta_y = y1-y2;
+		delta_y -= Ly * nearbyint(delta_y / Ly);
+
+		distance = sqrt((delta_x*delta_x) + (delta_y*delta_y));
+
+		// Sum of radii
+		sigma_ij = sigma_ij_array[index];
+		
+		// If bonded
+		if (adhesion_array[index] == 1){
+			// Linear spring magnitude
+			mag = (sigma_ij - distance);
+			*z += 1;
+		}
+		// If not bonded, check for overlap
+		else if (adhesion_array[index] == 0){
+			// If overlapping
+			if (distance <= sigma_ij){
+				mag = (sigma_ij - distance);
+				// Form double sided spring
+				adhesion_array[index] = 1;
+			}
+			else{
+				mag = 0.0;
+			}
+		}
+
+		// Get unit vector
+		inv_dist = 1.0 / distance;
+		delta_x_norm = delta_x * inv_dist;
+		delta_y_norm = delta_y * inv_dist;
+
+		// Scale by magnitude
+		Fx = delta_x_norm * mag;
+		Fy = delta_y_norm * mag;
+		
+		// Add to the total force
+		total_force[nonbonded_array1[index]][0] += Fx;
+		total_force[nonbonded_array1[index]][1] += Fy;
+		total_force[nonbonded_array2[index]][0] += -Fx;
+		total_force[nonbonded_array2[index]][1] += -Fy;
+
+		// Compute Vstress
+		vstress[0][0] += Fx*delta_x;
+		vstress[1][1] += Fy*delta_y;
+
+		vstress[0][1] += Fx*delta_y;
+		vstress[1][0] += Fy*delta_x;
+
+	}
+	return V;
+}
+
 // Active Brownian force
 void compute_ab(double coords[][2], int nonbonded_array1[], int nonbonded_array2[], int num_nonbonded, 
 								double total_force[][2], int adhesion_array[], double v0, double Lx, double Ly, 
@@ -540,7 +616,7 @@ int main(int argc, char *argv[]) {
 	int cycle = 0;
 	if (restart == 0){
 		while (cycle < 2){
-			//printf("phi = %lf\n",phi);
+			printf("phi = %lf\n",phi);
 			if (fabs(pcheck) > 1e-12 && cycle == 0){
 	    		delta_phi = 1e-3;
 	    	}
@@ -704,7 +780,7 @@ int main(int argc, char *argv[]) {
 					num_neighs = generate_vlist(coords, nonbonded_array1, nonbonded_array2, num_nonbonded, vlist, r_l, Lx, Ly, sigma_ij_array, adhesion_array, num_atoms);
 				}
 
-				avg_delta = compute_slj(coords, nonbonded_array1, nonbonded_array2, total_force, num_neighs, vlist, Lx, Ly, vstress, sigma_ij_array, num_atoms, adhesion_array, &z);
+				avg_delta = compute_slj_init(coords, nonbonded_array1, nonbonded_array2, total_force, num_neighs, vlist, Lx, Ly, vstress, sigma_ij_array, num_atoms, adhesion_array, &z);
 
 		        // Do second verlet update for velocities
 		        for (i = 0; i<num_atoms; i++){
@@ -753,7 +829,7 @@ int main(int argc, char *argv[]) {
 	//printf("Eq...\n");
 	double volume = Lx * Ly;
 	double vx, vy;
-	while (NVT_count < 1e9){
+	while (NVT_count < 1e7){
 		NVT_count += 1;
 
 		// Update Half Velocities //
@@ -838,8 +914,8 @@ int main(int argc, char *argv[]) {
 		if (NVT_count % split == 0){
 			update_bonds(coords, adhesion_array, p_off, num_nonbonded);
 		}
-		if (NVT_count % 100000 == 0){
-			//printf("i = %d\n",NVT_count);
+		if (NVT_count % 10000 == 0){
+			printf("i = %d\n",NVT_count);
 
 			// Get Temperature stress tensor //
 			memset(vstress_t, 0, sizeof(vstress));

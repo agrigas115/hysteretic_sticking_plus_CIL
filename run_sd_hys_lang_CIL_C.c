@@ -576,6 +576,8 @@ int main(int argc, char *argv[]) {
 	int cycle = 0;
 	if (restart == 0){
 		while (cycle < 2){
+			printf("phi = %lf\n",phi);
+
 			if (fabs(pcheck) > 1e-12 && cycle == 0){
 	    		delta_phi = 1e-3;
 	    	}
@@ -806,7 +808,7 @@ int main(int argc, char *argv[]) {
 
 	double volume = Lx * Ly;
 	double vx, vy;
-	while (NVT_count < 1e9){
+	while (NVT_count < 1e7){
 		NVT_count += 1;
 		// Update Half Velocities //
 		for (j = 0; j < num_atoms; j++){
@@ -886,8 +888,8 @@ int main(int argc, char *argv[]) {
 		if (NVT_count % split == 0){
 			update_bonds(coords, adhesion_array, p_off, num_nonbonded);
 		}
-		if (NVT_count % 100000 == 0){
-			//printf("i = %d\n",NVT_count);
+		if (NVT_count % 10000 == 0){
+			printf("i = %d\n",NVT_count);
 
 			// Get Temperature stress tensor //
 			memset(vstress_t, 0, sizeof(vstress));

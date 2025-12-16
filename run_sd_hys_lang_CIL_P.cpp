@@ -693,23 +693,6 @@ int main(int argc, char *argv[]) {
 	memset(total_force, 0, sizeof(total_force));
 	memset(vstress, 0, sizeof(vstress));
 
-	/*
-	total_kinetic_energy = 0;
-	for (j = 0; j < num_atoms; j++){
-		v = sqrt( (velocs[j][0]*velocs[j][0]) + (velocs[j][1]*velocs[j][1]) );
-		total_kinetic_energy += 0.5 * v * v;
-	}
-	temp = total_kinetic_energy / num_atoms;
-
-	scaling = sqrt(target_temp/temp);
-	for (j = 0; j < num_atoms; j++){
-		for (k = 0; k < 2; k++){
-			velocs[j][k] *= scaling;
-		}
-	}
-	*/
-
-	// NVE //
 	double disp = 0, disp_max1 = 0, disp_max2 = 0;
 	double disp_x, disp_y;
 	double disp_list[num_atoms];
@@ -766,7 +749,7 @@ int main(int argc, char *argv[]) {
 	int cycle = 0;
 	if (restart == 0){
 		while (cycle < 2){
-			//printf("phi = %lf\n",phi);
+			printf("phi = %lf\n",phi);
 			if (fabs(pcheck) > 1e-12 && cycle == 0){
 	    		delta_phi = 1e-3;
 	    	}
@@ -978,7 +961,7 @@ int main(int argc, char *argv[]) {
 	//r_l = 3*Lx/sqrt(num_atoms);
 	memcpy(displacement_array, coords, sizeof(displacement_array));
 	num_neighs = generate_vlist(coords, nonbonded_array1, nonbonded_array2, num_nonbonded, vlist, r_l, Lx, Ly, sigma_ij_array, adhesion_array, num_atoms);
-	while (NVT_count < 1e9){
+	while (NVT_count < 1e7){
 
 		
 		NVT_count += 1;
@@ -1103,8 +1086,8 @@ int main(int argc, char *argv[]) {
 		}
 
 
-		if (NVT_count % 100000 == 0){
-			//printf("NVT_count = %d\n",NVT_count);
+		if (NVT_count % 10000 == 0){
+			printf("NVT_count = %d\n",NVT_count);
 
 			// Get Temperature stress tensor //
 			memset(vstress_t, 0, sizeof(vstress));
