@@ -1,6 +1,8 @@
 # Hysteretic sticking plus CIL
 Discrete element simulations of repulsive disks with a hysteretic sticking interaction with three different types of activity. This repository supports the analysis of the following manuscript: https://www.biorxiv.org/content/10.64898/2025.12.07.692626v1
 
+All simulations can be visualized with their corresponding plot.py function.
+
 ## ABP and CIL-C
 Both the ABP and CIL-C model can be compiled without any additional libraires.
 ```
