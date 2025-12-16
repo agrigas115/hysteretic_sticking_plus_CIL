@@ -1,5 +1,5 @@
 # Hysteretic sticking plus CIL
-Discrete element simulations of repulsive disks with a hysteretic sticking interaction with three different types of activity. This repository supports the analysis of the following manuscript:
+Discrete element simulations of repulsive disks with a hysteretic sticking interaction with three different types of activity. This repository supports the analysis of the following manuscript: https://www.biorxiv.org/content/10.64898/2025.12.07.692626v1
 
 ## ABP and CIL-C
 Both the ABP and CIL-C model can be compiled without any additional libraires.
@@ -46,7 +46,7 @@ argv[6]: gamma - friction in Langevin thermostat
 argv[7]: seq - int for radii set in seq/seq_%s.txt
 
 Units in the code are all in raw simulation units. The ABP model never generates the tensioned fluid state.
-The following is an example run that generates the tensioend fluid state in the CIL-C model:
+The following is an example run that generates the tensioned fluid state in the CIL-C model:
 ```
 ./MD 0 0.001 1.0 0.4 0 1000 0
 ```
@@ -77,3 +77,8 @@ argv[7]: gamma - friction in Langevin thermostat
 argv[8]: theta - cutoff in adhesion angle to determine if a new adhesion is possible
 
 argv[9]: rr - ratchet rate of pulling in adhesion rest length
+
+The following is an example run that generates the tensioned fluid state in the CIL-P model:
+```
+./MD 0 0 0.01 0.001 0.4 0 1000 2.0 0.1
+```
