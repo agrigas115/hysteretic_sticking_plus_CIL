@@ -456,7 +456,7 @@ int main(int argc, char *argv[]) {
 		fclose(fp);
 
 		// Load adhesion array
-		snprintf(buf, sizeof(buf), "chk/coords_%s_p%s_v0_%s_phi%s_T_%s_gamma_%s_seq_%s_Dr_%s.chk",argv[1],argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8]);
+		snprintf(buf, sizeof(buf), "chk/adhesion_array_%s_p%s_v0_%s_phi%s_T_%s_gamma_%s_seq_%s_Dr_%s.chk",argv[1],argv[2],argv[3],argv[4],argv[5],argv[6],argv[7],argv[8]);
 		fp = fopen(buf, "r");
 		for (i=0; i<num_nonbonded; i++){
 			if (fscanf(fp," %d",&adhesion_array[i])==0){
