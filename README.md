@@ -1,7 +1,7 @@
 # Hysteretic sticking plus CIL
 Discrete element simulations of repulsive disks with a hysteretic sticking interaction and contact inhibition of locomotion (CIL). This repository supports two manuscripts:
 
-1. *Sparse mesenchymal cell networks as a fluid under tension*: https://www.biorxiv.org/content/10.64898/2025.12.07.692626v1. Codes at the top level.
+1. *Sparse mesenchymal cell networks as a fluid under tension*: https://www.biorxiv.org/content/10.64898/2025.12.07.692626v1. Code at the top level.
 2. *Fluids under tension: dynamics, mechanics, and structure of sparse active adhesive networks* (A. T. Grigas and M. L. Manning). Code in `fluids_under_tension/`.
 
 If you find this code useful, please cite the manuscripts. Please contact me if you have any questions.
