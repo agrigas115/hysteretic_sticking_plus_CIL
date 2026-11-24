@@ -89,7 +89,7 @@ The following is an example run that generates the tensioned fluid state in the 
 
 ## Fluids under tension: dynamics, mechanics, and structure of sparse active adhesive networks
 `fluids_under_tension/` holds:
-- `cil_bd.c`: both hysteretic models, crawling (`--model C`) and pulling (`--model P`), in one code. It is the same model as above, rewritten for speed: neighbour and cell lists, bond lifetimes drawn at birth, binding as a continuous-time process, and its own radical Voronoi construction (no Voro++).
+- `cil_bd.c`: both hysteretic models, crawling (`--model C`) and pulling (`--model P`), in one code. It is the same model as above, rewritten for speed, still single core: neighbour and cell lists, bond lifetimes drawn at birth, binding as a continuous-time process, and its own radical Voronoi construction (no Voro++).
 - `attractive_cil.c`: the attractive particle model with CIL-C, which falls into an absorbing state.
 - `trajectory.py`: reader for the `traj.bin` snapshots of `cil_bd`.
 
